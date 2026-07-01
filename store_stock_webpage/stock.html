@@ -1,0 +1,118 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store | Brahmani Motors</title>
+    <style>
+        :root { --bg-dark: #0f172a; --card-bg: #1e293b; --text-main: #f8fafc; --text-muted: #94a3b8; --accent-blue: #3b82f6; --accent-green: #10b981; --accent-red: #ef4444; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+
+        nav { width: 100%; padding: 15px 40px; background-color: rgba(30, 41, 59, 0.9); border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+        .nav-left { font-size: 1.4rem; font-weight: bold; color: white; }
+        .nav-right { display: flex; gap: 20px; align-items: center; }
+        select.switch-store { padding: 8px 15px; border-radius: 6px; background-color: var(--bg-dark); color: white; border: 1px solid var(--accent-blue); outline: none; cursor: pointer; }
+        .admin-btn { background-color: var(--accent-red); color: white; padding: 8px 15px; border-radius: 6px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; }
+        
+        header { text-align: center; margin: 40px 0 20px 0; }
+        h1 { font-size: 2.5rem; color: var(--accent-green); }
+
+        /* Store List */
+        .product-list { display: flex; flex-direction: column; gap: 15px; max-width: 900px; width: 90%; margin-bottom: 80px; }
+        .list-item { display: flex; align-items: center; background-color: var(--card-bg); border-radius: 10px; padding: 15px; border: 1px solid #334155; transition: 0.2s; }
+        .list-item:hover { border-color: var(--accent-green); transform: translateX(5px); }
+        .item-photo { width: 120px; height: 90px; background-color: #334155; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.8rem; flex-shrink: 0; margin-right: 20px; text-align: center; overflow: hidden;}
+        .item-details { flex-grow: 1; }
+        .item-name { font-size: 1.3rem; font-weight: bold; margin-bottom: 5px; }
+        .item-desc { color: var(--text-muted); font-size: 0.9rem; }
+        .item-price-section { text-align: right; margin-left: 20px; min-width: 120px; }
+        .item-price { font-size: 1.4rem; color: var(--accent-green); font-weight: bold; margin-bottom: 10px; }
+        .buy-btn { background-color: var(--accent-blue); color: white; padding: 8px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block; }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background-color: var(--card-bg); padding: 40px; border-radius: 12px; width: 320px; text-align: center; position: relative; border-top: 4px solid var(--accent-red); }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; }
+        .modal-content input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #334155; background-color: var(--bg-dark); color: white; }
+        .modal-content button { width: 100%; padding: 12px; background-color: var(--accent-red); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        #error-msg { color: var(--accent-red); display: none; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="nav-left">Storefront</div>
+        <div class="nav-right">
+            <select class="switch-store" onchange="window.location.href=this.value;">
+                <option value="" disabled selected>Switch Store...</option>
+                <option value="index.html">Main Homepage</option>
+                <option value="store.html">Automotive Store</option>
+                <option value="shop.html">Digital Shop</option>
+            </select>
+            <button id="admin-trigger" class="admin-btn">Admin Login</button>
+        </div>
+    </nav>
+
+    <header><h1>Inventory List</h1></header>
+
+    <div class="product-list" id="public-store-grid">
+        </div>
+
+    <div id="admin-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-btn" id="close-modal">&times;</span>
+            <h2 style="margin-bottom: 20px;">Admin Access</h2>
+            <p id="error-msg">Invalid ID or Password</p>
+            <input type="text" id="admin-id" placeholder="Enter ID">
+            <input type="password" id="admin-pass" placeholder="Enter Password">
+            <button id="login-btn">Login</button>
+        </div>
+    </div>
+
+    <script>
+        // --- ADMIN MODAL LOGIC ---
+        const adminTrigger = document.getElementById('admin-trigger'), adminModal = document.getElementById('admin-modal'), closeModal = document.getElementById('close-modal'), loginBtn = document.getElementById('login-btn'), errorMsg = document.getElementById('error-msg');
+        adminTrigger.addEventListener('click', () => { adminModal.style.display = 'flex'; errorMsg.style.display = 'none'; });
+        closeModal.addEventListener('click', () => adminModal.style.display = 'none');
+        loginBtn.addEventListener('click', () => {
+            if (document.getElementById('admin-id').value === 'admin' && document.getElementById('admin-pass').value === 'admin') window.location.href = 'admin_dashboard.html';
+            else errorMsg.style.display = 'block';
+        });
+
+        // --- STORE INVENTORY RENDER ENGINE ---
+        // Grab data from browser memory, or use defaults if first time visiting
+        const inventory = JSON.parse(localStorage.getItem('storeInventory')) || [
+            { id: 1, photo: "assets/signa.jpg", name: "Tata Signa 4825.TK Tipper", desc: "Heavy-duty commercial vehicle.", price: "48.5L" },
+            { id: 2, photo: "assets/prima.jpg", name: "Tata Prima 5530.S Tractor", desc: "Premium long-haul commercial tractor.", price: "40.2L" }
+        ];
+
+        const storeGrid = document.getElementById('public-store-grid');
+        storeGrid.innerHTML = ''; // This clears the grid before loading so it's fresh
+        
+        // Loop through data and build the HTML for each item
+        inventory.forEach(item => {
+            storeGrid.innerHTML += `
+                <div class="list-item">
+                    
+                    <div class="item-photo">
+                        <img src="${item.photo}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;">
+                    </div>
+                    
+                    <div class="item-details">
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-desc">${item.desc}</div>
+                    </div>
+                    
+                    <div class="item-price-section">
+                        <div class="item-price">₹ ${item.price}</div>
+                        <a href="#" class="buy-btn">Quote</a>
+                    </div>
+
+                </div>
+            `;
+        });
+    </script>
+</body>
+</html>
