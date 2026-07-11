@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Filename to Text Processor</title>
+    <style>
+        :root {
+            --primary: #478499;
+            --primary-hover: #356677;
+            --success: #4ea878;
+            --success-hover: #3b875e;
+            --bg-light: #f0f6f8;
+            --border: #cddce0;
+            --text-main: #2d3748;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #e6eef0;
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-main);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .panel {
+            background-color: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step-number {
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        /* Form Elements */
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            border: none;
+            border-radius: 6px;
+            background-color: var(--primary);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover { background-color: var(--primary-hover); }
+        
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover { background-color: var(--success-hover); }
+
+        /* File Upload Area */
+        .upload-area {
+            border: 2px dashed var(--primary);
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            background: white;
+            cursor: pointer;
+            margin-bottom: 15px;
+            transition: background 0.2s;
+        }
+
+        .upload-area:hover { background: #f8fbfc; }
+        
+        input[type="file"] { display: none; }
+
+        .file-list {
+            max-height: 120px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            color: #555;
+            padding: 10px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        /* Output Area */
+        .output-panel { grid-column: 1 / -1; }
+        
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .result-text {
+            flex-grow: 1;
+            margin-right: 15px;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            width: auto;
+            margin: 0;
+            padding: 6px 12px;
+            background-color: #e2e8f0;
+            color: #4a5568;
+            font-size: 0.85rem;
+        }
+
+        .copy-btn:hover { background-color: #cbd5e0; }
+
+        /* Notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2d3748;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Image Filename to Text Processor</h1>
+
+    <div class="grid-layout">
+        <div class="panel">
+            <h2><span class="step-number">1</span> Upload Images</h2>
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <p><strong>Click to choose files</strong><br>or drag & drop images here</p>
+                <input type="file" id="fileInput" multiple accept="image/*, .pdf, .txt, .csv">
+            </div>
+            <div id="fileList" class="file-list">No files selected yet.</div>
+        </div>
+
+        <div class="panel">
+            <h2><span class="step-number">2</span> Define Template & Position</h2>
+            <label for="templateText"><strong>Custom Text Template:</strong></label>
+            <textarea id="templateText" rows="4">This is a photo of {image_name}. It looks amazing!</textarea>
+            
+            <label for="placeholderText" style="display:block; margin-top:15px;"><strong>Placeholder String (Position):</strong></label>
+            <input type="text" id="placeholderText" value="{image_name}">
+            
+            <button onclick="processFiles()">APPLY TEMPLATE TO NAMES</button>
+        </div>
+
+        <div class="panel output-panel">
+            <h2><span class="step-number">3</span> Generated Text Lines & Copy Options</h2>
+            
+            <div class="grid-layout" style="margin-bottom:0; gap:25px;">
+                <div>
+                    <strong>INDIVIDUAL LINES (Click to Copy)</strong>
+                    <div id="individualOutput" style="margin-top:10px; max-height: 300px; overflow-y: auto;">
+                        <p style="color:#777; font-size:0.9rem;">Processed lines will appear here...</p>
+                    </div>
+                </div>
+
+                <div>
+                    <strong>ALL LINES REPEATED (Copy all at once)</strong>
+                    <textarea id="bulkOutput" rows="12" readonly style="background:#f8fafc; cursor:text; margin-top:10px;"></textarea>
+                    <button class="btn-success" onclick="copyBulk()">COPY ALL REPEATED TEXT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast">Copied to clipboard!</div>
+
+<script>
+    let extractedFilenames = [];
+
+    // Handle File Input Selection
+    const fileInput = document.getElementById('fileInput');
+    const fileListDiv = document.getElementById('fileList');
+
+    fileInput.addEventListener('change', function(e) {
+        extractedFilenames = [];
+        const files = e.target.files;
+        
+        if (files.length === 0) {
+            fileListDiv.innerHTML = "No files selected yet.";
+            return;
+        }
+
+        let fileListHtml = "";
+        for (let i = 0; i < files.length; i++) {
+            extractedFilenames.push(files[i].name);
+            fileListHtml += `<div>${files[i].name}</div>`;
+        }
+        fileListDiv.innerHTML = fileListHtml;
+    });
+
+    // Process Files and Generate Text
+    function processFiles() {
+        if (extractedFilenames.length === 0) {
+            alert("Please select some images first!");
+            return;
+        }
+
+        const template = document.getElementById('templateText').value;
+        const placeholder = document.getElementById('placeholderText').value;
+        const individualOutput = document.getElementById('individualOutput');
+        const bulkOutput = document.getElementById('bulkOutput');
+
+        individualOutput.innerHTML = ""; // Clear previous
+        let bulkText = "";
+
+        extractedFilenames.forEach(filename => {
+            // Replace the placeholder with the actual filename
+            // Using split.join to replace ALL instances of the placeholder in the template
+            const finalLine = template.split(placeholder).join(filename);
+            
+            // Build Bulk Text
+            bulkText += finalLine + "\n";
+
+            // Build Individual Row
+            const row = document.createElement('div');
+            row.className = 'result-row';
+            
+            const textSpan = document.createElement('span');
+            textSpan.className = 'result-text';
+            textSpan.innerText = finalLine;
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.innerText = 'Copy Line';
+            copyBtn.onclick = () => copyToClipboard(finalLine);
+
+            row.appendChild(textSpan);
+            row.appendChild(copyBtn);
+            individualOutput.appendChild(row);
+        });
+
+        bulkOutput.value = bulkText.trim();
+    }
+
+    // Clipboard Functionality
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast();
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+            alert("Clipboard copy failed.");
+        });
+    }
+
+    function copyBulk() {
+        const text = document.getElementById('bulkOutput').value;
+        if (!text) return;
+        copyToClipboard(text);
+    }
+
+    // UI Toast Notification
+    function showToast() {
+        const toast = document.getElementById('toast');
+        toast.style.opacity = '1';
+        setTimeout(() => {
+            toast.style.opacity = '0';
+        }, 2000);
+    }
+</script>
+
+</body>
+</html>
