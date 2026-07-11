@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch Image Converter (Patched)</title>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .converter-box {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+        }
+        input[type="file"], select, button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            background-color: #0056b3;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #004494;
+        }
+        button:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+        }
+        
+        #previewGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .image-card {
+            border: 1px solid #eee;
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #fafafa;
+        }
+        .image-card img {
+            max-width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        /* Default Download Button Style */
+        .download-link {
+            display: inline-block;
+            margin-top: auto;
+            padding: 8px 12px;
+            background-color: #28a745; /* Green */
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            width: 100%;
+            box-sizing: border-box;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        .download-link:hover {
+            background-color: #218838;
+        }
+
+        /* NEW: Downloaded State Style */
+        .download-link.downloaded {
+            background-color: #6c757d; /* Gray */
+            color: #f8f9fa;
+        }
+        .download-link.downloaded:hover {
+            background-color: #5a6268; 
+        }
+
+        .status-text {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="converter-box">
+        <h2>Batch Image Converter</h2>
+        
+        <input type="file" id="imageInput" accept="image/png, image/jpeg, image/webp, .heic, .heif" multiple>
+        
+        <select id="formatSelect">
+            <option value="image/jpeg">Convert to JPEG</option>
+            <option value="image/png">Convert to PNG</option>
+            <option value="image/webp">Convert to WebP</option>
+        </select>
+        
+        <button id="convertBtn">Convert All Images</button>
+        
+        <div id="previewGrid"></div>
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const formatSelect = document.getElementById('formatSelect');
+        const convertBtn = document.getElementById('convertBtn');
+        const previewGrid = document.getElementById('previewGrid');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let filesToConvert = [];
+
+        imageInput.addEventListener('change', async function(event) {
+            previewGrid.innerHTML = '';
+            filesToConvert = [];
+            
+            const files = event.target.files;
+            if (files.length === 0) return;
+
+            convertBtn.disabled = true;
+            convertBtn.textContent = "Loading images...";
+
+            for (const file of files) {
+                const card = document.createElement('div');
+                card.className = 'image-card';
+                
+                const status = document.createElement('div');
+                status.className = 'status-text';
+                status.textContent = `Loading ${file.name}...`;
+                
+                card.appendChild(status);
+                previewGrid.appendChild(card);
+
+                try {
+                    let imageBlob = file;
+
+                    const fileName = file.name.toLowerCase();
+                    if (fileName.endsWith('.heic') || fileName.endsWith('.heif')) {
+                        status.textContent = `Translating HEIC: ${file.name}...`;
+                        imageBlob = await heic2any({
+                            blob: file,
+                            toType: "image/jpeg",
+                            quality: 0.8
+                        });
+                        if (Array.isArray(imageBlob)) imageBlob = imageBlob[0];
+                    }
+
+                    const imgUrl = URL.createObjectURL(imageBlob);
+                    const imgElement = new Image();
+                    
+                    await new Promise((resolve, reject) => {
+                        imgElement.onload = resolve;
+                        imgElement.onerror = reject;
+                        imgElement.src = imgUrl;
+                    });
+
+                    status.textContent = file.name;
+                    card.insertBefore(imgElement, status);
+
+                    filesToConvert.push({
+                        originalName: file.name,
+                        imgElement: imgElement,
+                        cardElement: card
+                    });
+
+                } catch (error) {
+                    console.error(error);
+                    status.textContent = `Error loading ${file.name}`;
+                    status.style.color = "red";
+                }
+            }
+
+            convertBtn.disabled = false;
+            convertBtn.textContent = "Convert All Images";
+        });
+
+        convertBtn.addEventListener('click', function() {
+            if (filesToConvert.length === 0) {
+                alert("Please upload at least one valid image first.");
+                return;
+            }
+
+            const targetFormat = formatSelect.value;
+            const extension = targetFormat.split('/')[1];
+
+            filesToConvert.forEach(item => {
+                const img = item.imgElement;
+                const card = item.cardElement;
+
+                // BUG 1 FIX: Use naturalWidth and naturalHeight to ignore CSS scaling
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+
+                ctx.drawImage(img, 0, 0);
+
+                const convertedDataUrl = canvas.toDataURL(targetFormat, 1.0);
+
+                const baseName = item.originalName.substring(0, item.originalName.lastIndexOf('.')) || item.originalName;
+                const newFileName = `${baseName}-converted.${extension}`;
+
+                const existingBtn = card.querySelector('.download-link');
+                if (existingBtn) existingBtn.remove();
+
+                const downloadBtn = document.createElement('a');
+                downloadBtn.className = 'download-link';
+                downloadBtn.textContent = 'Download';
+                downloadBtn.href = convertedDataUrl;
+                downloadBtn.download = newFileName;
+
+                // BUG 2 FIX: Add click listener to change button appearance
+                downloadBtn.addEventListener('click', function() {
+                    this.classList.add('downloaded');
+                    this.textContent = 'Downloaded ✓';
+                });
+
+                card.appendChild(downloadBtn);
+            });
+        });
+    </script>
+</body>
+</html>
